@@ -51,7 +51,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         match cmd {
             Command::Kill => kill(),
             Command::Restart => restart(),
-            Command::Logout => todo!(),
+            Command::Logout => logout(),
         }
     } else {
         return Ok(());
@@ -75,6 +75,17 @@ fn kill() -> Process {
 fn restart() -> Process {
     let mut cmd = std::process::Command::new("systemctl");
     cmd.arg("reboot");
+
+    Process::new(cmd)
+}
+
+fn logout() -> Process {
+    let mut cmd = std::process::Command::new("loginctl");
+    cmd.arg("terminate-user");
+
+    let user =
+        std::env::var("USER").expect("{PROGRAM}: $USER should be set for '{PROGRAM} restart'");
+    cmd.arg(user);
 
     Process::new(cmd)
 }
