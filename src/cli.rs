@@ -50,7 +50,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut process = if let Some(cmd) = args.command {
         match cmd {
             Command::Kill => kill(),
-            Command::Restart => todo!(),
+            Command::Restart => restart(),
             Command::Logout => todo!(),
         }
     } else {
@@ -69,5 +69,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 fn kill() -> Process {
     let mut cmd = std::process::Command::new("systemctl");
     cmd.arg("poweroff");
+    Process::new(cmd)
+}
+
+fn restart() -> Process {
+    let mut cmd = std::process::Command::new("systemctl");
+    cmd.arg("reboot");
+
     Process::new(cmd)
 }
