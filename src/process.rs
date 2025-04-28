@@ -42,7 +42,7 @@ impl std::fmt::Display for Error {
 
 pub struct Process(Command);
 impl Process {
-    fn new(cmd: Command) -> Self {
+    pub fn new(cmd: Command) -> Self {
         Self(cmd)
     }
 
@@ -75,8 +75,59 @@ impl Process {
     }
 }
 
-pub fn kill() -> Process {
-    let mut cmd = Command::new("systemctl");
-    cmd.arg("poweroff");
-    Process::new(cmd)
+#[cfg(test)]
+mod tests {
+    use std::io::Read;
+
+    use super::*;
+
+    #[test]
+    fn should_return_proper_program_name() {
+        let cmd = Command::new("echo");
+        assert_eq!(Process::new(cmd).get_process_name(), "echo")
+    }
+
+    #[test]
+    fn should_not_exec_nonexistent_binaries() {
+        let cmd = Command::new("this-binary-does-not-exist");
+        let mut process = Process::new(cmd);
+
+        let validate_result = process.validate();
+        assert!(validate_result.is_err());
+
+        let exec_result = process.exec();
+        assert!(exec_result.is_err());
+
+        let validate_err_str = format!("{}", validate_result.unwrap_err());
+        let exec_err_str = format!("{}", exec_result.unwrap_err());
+
+        assert_eq!(validate_err_str, exec_err_str);
+    }
+
+    #[test]
+    fn should_propagate_stderr_of_child_process() {
+        let mut cmd = Command::new("ls");
+        cmd.arg("this-file-does-not-exist");
+
+        let mut process = Process::new(cmd);
+        let exec_result = process.exec();
+
+        assert!(exec_result.is_err_and(|err| {
+            if let Error::Exec(ecode, stderr) = err {
+                ecode > 0u8 && stderr.bytes().count() > 0
+            } else {
+                false
+            }
+        }));
+    }
+
+    #[test]
+    fn should_propagate_stdout_of_child_process() {
+        let cmd = Command::new("ls");
+
+        let mut process = Process::new(cmd);
+        let exec_result = process.exec();
+
+        assert!(exec_result.is_ok_and(|stdout| { stdout.bytes().count() > 0 }));
+    }
 }
