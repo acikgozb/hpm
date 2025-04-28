@@ -1,3 +1,16 @@
+//! A minimal module, acts as a wrapper around [`std::process::Command`].
+//!
+//! [`hpm::process`] is designed to provide a basic API on top of [`std::process::Command`]:
+//!
+//! - It provides a basic validation that checks whether the given program is accessible on the host (similar to `which` on Linux).
+//! - It pipes the output streams [`std::io::stdout`] and [`std::io::stderr`] and delegates the (exit code, output stream) to clients accordingly.
+//! - It's [`Error`] type makes the failure points of an execution easier to understand.
+//!
+//! [`hpm::process`]: crate::process
+//! [`std::process::Command`]: std::process::Command
+//! [`std::io::stdout`]: std::io::stdout
+//! [`std::io::stderr`]: std::io::stderr
+//! [`Error`]: crate::process::Error
 use std::{
     ffi::{OsStr, OsString},
     process::Command,
@@ -5,11 +18,37 @@ use std::{
 
 use crate::PROGRAM;
 
+/// The main Error type of [`crate::process`].
+///
+/// It is designed to show each potential failure point during an execution of a [`std::process::Command`].
+///
+/// [`crate::process`]: crate::process
+/// [`std::process::Command`]: std::process::Command
 #[derive(Debug)]
 pub enum Error {
+    /// Represents a failed `$PATH` lookup of the program
+    /// that is passed to [`crate::process::Process`].
+    /// [`crate::process::Process`]: crate::process::Process
     BinaryDoesNotExist(OsString),
+
+    /// Represents a failed execution of the given [`std::process::Command`]
+    /// to [`crate::process::Process`].
+    /// Provides the program name and the originated [`std::io::Error`].
+    ///
+    /// [`crate::process::Process`]: crate::process::Process
+    /// [`std::io::Error`]: std::io::Error
     FailedToExecProcess(OsString, std::io::Error),
+
+    /// Represents a successful execution of a [`std::process::Command`] that resulted in an error.
+    /// Provides the exit code of the process, along with its [`std::io::stderr`] stream.
+    ///
+    /// [`crate::process::Process`]: crate::process::Process
+    /// [`std::io::stderr`]: std::io::stderr
     Exec(u8, Vec<u8>),
+
+    /// Represents an interruption during the execution of a given [`std::process::Command`].
+    ///
+    /// [`std::process::Command`]: std::process::Command
     Interrupted,
 }
 
@@ -40,8 +79,22 @@ impl std::fmt::Display for Error {
     }
 }
 
+/// [`crate::process::Process`] is the main building block of [`crate::process`].
+/// It wraps a user provided [`std::process::Command`] and provides a simple API to execute it safely.
+///
+/// Even though it can be instantiated manually by hand, prefer using the [`crate::process::Process::new`] method.
+///
+/// For more information, please refer to [`crate::process::Process::exec`].
+///
+/// [`crate::process`]: crate::process
+/// [`crate::process::Process`]: crate::process::Process
+/// [`crate::process::Process::new`]: crate::process::Process::new
+/// [`crate::process::Process::exec`]: crate::process::Process::exec
+/// [`std::process::Command`]: std::process::Command
 pub struct Process(Command);
+
 impl Process {
+    /// Creates a new Process.
     pub fn new(cmd: Command) -> Self {
         Self(cmd)
     }
@@ -57,6 +110,28 @@ impl Process {
             .map_err(|_| Error::BinaryDoesNotExist(process_name.to_os_string()))
     }
 
+    /// [`exec`] is the only meaningful interaction point of a [`crate::process::Process`].
+    /// It validates the program of the user provided [`std::process::Command`],
+    /// executes the command and waits it.
+    ///
+    /// If command result is Ok, then [`exec`] returns the [`std::io::stdout`] stream to the caller.
+    /// If command result is Error, then [`exec`] returns the exit code along with the [`std::io::stderr`] stream of the command.
+    ///
+    /// # Errors
+    ///
+    /// [`crate::process::Error::FailedToExecProcess`] - Originates when the execution of Command fails.
+    /// [`crate::process::Error::Interrupted`] - Originates when the execution of the command is interrupted.
+    /// [`crate::process::Error::Exec`] - Originates when the Command is executed successfully, but the received exit code is greater than zero.
+    /// It holds the exit code along with the [`std::io::stderr`] stream.
+    ///
+    /// [`exec`]: crate::process::Process::exec
+    /// [`crate::process::Process`]: crate::process::Process
+    /// [`crate::process::Error::Interrupted`]: crate::process::Error::Interrupted
+    /// [`crate::process::Error::FailedToExecProcess`]: crate::process::Error::FailedToExecProcess
+    /// [`crate::process::Error::Exec`]: crate::process::Error::Exec
+    /// [`std::io::stdout`]: std::io::stdout
+    /// [`std::io::stderr`]: std::io::stderr
+    /// [`std::process::Process`]: std::process::Process
     pub fn exec(&mut self) -> Result<Vec<u8>, Error> {
         self.validate()?;
 

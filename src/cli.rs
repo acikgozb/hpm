@@ -1,3 +1,5 @@
+//! The API of `hpm`.
+
 use std::io::Write;
 
 use clap::{Parser, Subcommand};
@@ -28,8 +30,19 @@ enum Command {
     Logout,
 }
 
+/// The main Error type of [`crate::cli`].
+///
+/// It is designed to capture [`std::io::Error`]s that originate from the underlying OS. It limits the scope to ones that originates during basic CLI actions (read, write).
+///
+/// [`crate::cli`]: crate::cli
+/// [`std::io::Error`]: std::io::Error
 #[derive(Debug)]
 pub enum Error {
+    /// Represents a failed write to [`std::io::stdout`].
+    /// It holds the underlying [`std::io::Error`].
+    ///
+    /// [`std::io::stdout`]: std::io::stdout
+    /// [`std::io::Error`]: std::io::Error
     FailedToWriteStdout(std::io::Error),
 }
 
@@ -44,6 +57,17 @@ impl std::fmt::Display for Error {
     }
 }
 
+/// The main entrypoint of `hpm`.
+///
+/// `run` is designed to be used by CLI binary crates. It parses the shell arguments and then forwards the user to appropriate child processes.
+///
+/// If Result is Ok, it represents a successful `hpm` execution. This means that the child process is executed and its stdout stream is redirected to /dev/stdout.
+///
+/// If Result is Error, it is either a [`hpm::process::Error`] or [`hpm::cli::Error`].
+/// `run` does not do anything internally when Result is Error, it is up to the caller to act accordingly (e.g. terminating the program with appropriate exit codes.)
+///
+/// [`hpm::process::Error`]: crate::process::Error
+/// [`hpm::cli::Error`]: crate::cli::Error
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
