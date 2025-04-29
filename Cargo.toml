@@ -1,10 +1,20 @@
 [package]
 name = "hpm"
 version = "0.1.0"
+authors = ["Berk Acikgoz <acikgozb@proton.me>"]
 edition = "2024"
+description = "A simple, interactive program for host power management."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/acikgozb/hpm"
 
 [dependencies]
 clap = { version = "4.5.37", features = ["derive"] }
 
 [target.'cfg(not(all(target_family = "wasm", target_os = "unknown")))'.dependencies]
 which = "7.0.0"
+
+[profile.release]
+lto = true
+strip = true
+# Size > comp time for this program, hence the codegen flag.
+codegen-units = 1
