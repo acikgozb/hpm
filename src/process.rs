@@ -11,12 +11,11 @@
 //! [`std::io::stdout`]: std::io::stdout
 //! [`std::io::stderr`]: std::io::stderr
 //! [`Error`]: crate::process::Error
+
 use std::{
     ffi::{OsStr, OsString},
     process::Command,
 };
-
-use crate::PROGRAM;
 
 /// The main Error type of [`crate::process`].
 ///
@@ -57,23 +56,19 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::BinaryDoesNotExist(binary) => {
-                write!(f, "{PROGRAM}: the binary does not exist: {:?}", binary)
+                write!(f, "the binary does not exist: {:?}", binary)
             }
             Error::FailedToExecProcess(binary, error) => {
-                write!(
-                    f,
-                    "{PROGRAM}: failed to execute the binary {:?}: {}",
-                    binary, error
-                )
+                write!(f, "failed to execute the binary {:?}: {}", binary, error)
             }
             Error::Exec(_, vec) => {
                 let process_err = String::from_utf8(vec.to_owned())
                     .expect("the process output should be valid UTF-8");
 
-                write!(f, "{PROGRAM}: {process_err}")
+                write!(f, "{process_err}")
             }
             Error::Interrupted => {
-                write!(f, "{PROGRAM}: interrupted by the host")
+                write!(f, "interrupted by the host")
             }
         }
     }
