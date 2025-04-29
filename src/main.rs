@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 use hpm::Process;
+use std::collections::HashMap;
+use std::fmt::{self, Debug};
 use std::io::Write;
 use std::process::ExitCode;
 
@@ -23,6 +25,8 @@ fn main() -> ExitCode {
             if let Some(err) = hpm_err.downcast_ref::<Error>() {
                 return ExitCode::from(match err {
                     Error::FailedToWriteStdout(_) => 1u8,
+                    Error::FailedToReadStdin(_) => 1u8,
+                    Error::InvalidUserAnswer => 1u8,
                 });
             }
 
@@ -55,17 +59,35 @@ enum Command {
     Logout,
 }
 
+impl fmt::Display for Command {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Command::Kill => write!(f, "Kill"),
+            Command::Restart => write!(f, "Restart"),
+            Command::Logout => write!(f, "Logout"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Error {
     FailedToWriteStdout(std::io::Error),
+    FailedToReadStdin(std::io::Error),
+    InvalidUserAnswer,
 }
 
 impl std::error::Error for Error {}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::FailedToWriteStdout(err) => {
                 write!(f, "failed to write to stdout: {}", err)
+            }
+            Error::FailedToReadStdin(err) => {
+                write!(f, "failed to read stdin: {}", err)
+            }
+            Error::InvalidUserAnswer => {
+                write!(f, "the given command does not exist")
             }
         }
     }
@@ -74,14 +96,18 @@ impl std::fmt::Display for Error {
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    let mut process = if let Some(cmd) = args.command {
-        match cmd {
-            Command::Kill => kill(),
-            Command::Restart => restart(),
-            Command::Logout => logout(),
-        }
+    let cmd = if args.interactive {
+        interactive()?
+    } else if let Some(cmd) = args.command {
+        cmd
     } else {
         return Ok(());
+    };
+
+    let mut process = match cmd {
+        Command::Kill => kill(),
+        Command::Restart => restart(),
+        Command::Logout => logout(),
     };
 
     let process_stdout = process.exec()?;
@@ -114,4 +140,32 @@ fn logout() -> Process {
     cmd.arg(user);
 
     Process::new(cmd)
+}
+
+fn interactive() -> Result<Command, Error> {
+    let cmds = [Command::Kill, Command::Restart, Command::Logout];
+
+    let mut prompt_str = String::new();
+    let mut cmd_map: HashMap<u8, Command> = HashMap::new();
+
+    for (idx, cmd) in cmds.into_iter().enumerate() {
+        prompt_str = format!("{}, ({}) {}", prompt_str, idx, cmd);
+        cmd_map.insert(idx as u8, cmd);
+    }
+
+    let prompt_str = prompt_str.strip_prefix(", ").unwrap();
+    let mut answer_buf = String::new();
+
+    println!("Select the command you wish to execute:\n{}", prompt_str);
+    std::io::stdin()
+        .read_line(&mut answer_buf)
+        .map_err(Error::FailedToReadStdin)?;
+
+    let cmd_key = answer_buf
+        .trim()
+        .parse::<u8>()
+        .map_err(|_| Error::InvalidUserAnswer)?;
+    let selected_cmd = cmd_map.remove(&cmd_key).ok_or(Error::InvalidUserAnswer)?;
+
+    Ok(selected_cmd)
 }
