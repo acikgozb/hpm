@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PROGRAM="hpm-ci-exec"
+
+function check_extern_commands {
+  for cmd in "${@}"; do
+    if ! which "$cmd" > /dev/null 2>&1; then
+      echo "$PROGRAM: install $cmd to proceed" >&2
+      exit 1
+    fi
+  done
+}
+
+function test {
+  check_extern_commands "cargo"
+  cargo test
+}
+
+function lint {
+  check_extern_commands "cargo"
+  cargo clippy --no-deps
+}
+
+"$@"
