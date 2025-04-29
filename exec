@@ -23,4 +23,29 @@ function lint {
   cargo clippy --no-deps
 }
 
+function build {
+  check_extern_commands "cargo"
+
+  RUST_TARGET="${1:-x86_64-unknown-linux-gnu}"
+  cargo build --release --locked --target "$RUST_TARGET"
+}
+
+function create_archive {
+  check_extern_commands "tar"
+
+  RUST_TARGET="${1:-x86_64-unknown-linux-gnu}"
+  ARCHIVE_PATH="${2:-binary.tar.gz}"
+
+  tar -C "./target/$RUST_TARGET/release" -czvf "$ARCHIVE_PATH" "hpm"
+}
+
+function create_checksum {
+  check_extern_commands "sha256sum"
+
+  RUST_TARGET="${1:-x86_64-unknown-linux-gnu}"
+  CHECKSUM_PATH="${2:-binary.sha256sum}"
+
+  sha256sum "./target/$RUST_TARGET/release/hpm" > "$CHECKSUM_PATH"
+}
+
 "$@"
