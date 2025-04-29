@@ -26,7 +26,7 @@ jobs:
 
       - name: Create release
         run: |
-          gh release "$GIT_TAG" --verify-tag --draft --title "$GIT_TAG"
+          gh release create "$GIT_TAG" --verify-tag --draft --title "$GIT_TAG"
 
         shell: bash
 
