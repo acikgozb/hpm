@@ -1,5 +1,2 @@
-pub mod cli;
-pub use cli::run;
 pub mod process;
-
-pub const PROGRAM: &str = "hpm";
+pub use process::{Error, Process};
